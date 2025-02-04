@@ -1,7 +1,6 @@
 import json
-
-from app import app
-from models import db, Plant
+import unittest
+from app import app, db, Plant
 
 class TestPlant:
     '''Flask application in app.py'''
@@ -27,10 +26,10 @@ class TestPlant:
             plant_1.is_in_stock = True
             db.session.add(plant_1)
             db.session.commit()
-            
+
         response = app.test_client().patch(
             '/plants/1',
-            json = {
+            json={
                 "is_in_stock": False,
             }
         )
@@ -41,19 +40,33 @@ class TestPlant:
         assert(data["is_in_stock"] == False)
 
     def test_plant_by_id_delete_route_deletes_plant(self):
-        '''returns JSON representing updated Plant object at "/plants/<int:id>".'''
-        with app.app_context():
-            lo = Plant(
-                name="Live Oak",
-                image="https://www.nwf.org/-/media/NEW-WEBSITE/Shared-Folder/Wildlife/Plants-and-Fungi/plant_southern-live-oak_600x300.ashx",
-                price=250.00,
-                is_in_stock=False,
-            )
+        '''returns JSON representing the deletion of a Plant object at "/plants/<int:id>".'''
+    with app.app_context():
+        # Add a new plant to test deletion
+        lo = Plant(
+            name="Live Oak",
+            image="https://www.nwf.org/-/media/NEW-WEBSITE/Shared-Folder/Wildlife/Plants-and-Fungi/plant_southern-live-oak_600x300.ashx",
+            price=250.00,
+            is_in_stock=False,
+        )
+        db.session.add(lo)
+        db.session.commit()
 
-            db.session.add(lo)
-            db.session.commit()
-            
-            response = app.test_client().delete(f'/plants/{lo.id}')
-            data = response.data.decode()
+        # Ensure the plant exists before deletion
+        plant = Plant.query.get(lo.id)
+        assert plant is not None
 
-            assert(not data)
+        # Send DELETE request to delete the plant
+        response = app.test_client().delete(f'/plants/{lo.id}')
+        data = json.loads(response.data.decode())  # Parse the JSON response
+
+        # Check if the response contains the correct deletion message with the plant ID
+        assert f"Plant {lo.id} has been deleted" == data["message"]
+
+        # Ensure the plant is deleted from the database
+        deleted_plant = Plant.query.get(lo.id)
+        assert deleted_plant is None
+
+
+if __name__ == '__main__':
+    unittest.main()
